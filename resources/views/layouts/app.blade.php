@@ -14,7 +14,7 @@
 
 </head>
 
-<body class="bg-gray-100 min-h-screen">
+<body class="min-h-screen flex flex-col bg-gray-50">
 
     <!-- Navbar -->
 
@@ -58,6 +58,13 @@
 
                     </a>
 
+                    <a href="{{ route('files.history') }}"
+                        class="text-white hover:bg-indigo-600 px-4 py-2 rounded">
+
+                        File History
+
+                    </a>
+
                 </div>
 
             </div>
@@ -66,87 +73,95 @@
 
     </nav>
 
+
     <!-- Main Container -->
 
-    <div class="max-w-7xl mx-auto py-8 px-4">
+    <main class="flex-1">
 
-        <!-- Success Message -->
+        <div class="max-w-7xl mx-auto py-8 px-4">
 
-        @if(session('success'))
+            <!-- Success Message -->
 
-        <div class="bg-green-100 border border-green-400 text-green-700 px-5 py-3 rounded-lg mb-5">
+            @if(session('success'))
 
-            {{ session('success') }}
+                <div class="bg-green-100 border border-green-400 text-green-700 px-5 py-3 rounded-lg mb-5">
+
+                    {{ session('success') }}
+
+                </div>
+
+            @endif
+
+
+            <!-- Error Message -->
+
+            @if(session('error'))
+
+                <div class="bg-red-100 border border-red-400 text-red-700 px-5 py-3 rounded-lg mb-5">
+
+                    {{ session('error') }}
+
+                </div>
+
+            @endif
+
+
+            <!-- Import Errors -->
+
+            @if(session('errors'))
+
+                <div class="bg-yellow-100 border border-yellow-400 text-yellow-800 px-5 py-3 rounded-lg mb-5">
+
+                    <h3 class="font-bold mb-2">
+                        Import Errors
+                    </h3>
+
+                    <ul class="list-disc list-inside">
+
+                        @foreach(session('errors') as $error)
+
+                            <li>{{ $error }}</li>
+
+                        @endforeach
+
+                    </ul>
+
+                </div>
+
+            @endif
+
+
+            <!-- Validation Errors -->
+
+            @if($errors->any())
+
+                <div class="bg-red-100 border border-red-400 text-red-700 px-5 py-3 rounded-lg mb-5">
+
+                    <ul class="list-disc list-inside">
+
+                        @foreach($errors->all() as $error)
+
+                            <li>{{ $error }}</li>
+
+                        @endforeach
+
+                    </ul>
+
+                </div>
+
+            @endif
+
+
+            @yield('content')
 
         </div>
 
-        @endif
+    </main>
 
-        <!-- Error Message -->
-
-        @if(session('error'))
-
-        <div class="bg-red-100 border border-red-400 text-red-700 px-5 py-3 rounded-lg mb-5">
-
-            {{ session('error') }}
-
-        </div>
-
-        @endif
-
-        <!-- Import Errors -->
-
-        @if(session('errors'))
-
-        <div class="bg-yellow-100 border border-yellow-400 text-yellow-800 px-5 py-3 rounded-lg mb-5">
-
-            <h3 class="font-bold mb-2">
-
-                Import Errors
-
-            </h3>
-
-            <ul class="list-disc list-inside">
-
-                @foreach(session('errors') as $error)
-
-                <li>{{ $error }}</li>
-
-                @endforeach
-
-            </ul>
-
-        </div>
-
-        @endif
-
-        <!-- Validation Errors -->
-
-        @if($errors->any())
-
-        <div class="bg-red-100 border border-red-400 text-red-700 px-5 py-3 rounded-lg mb-5">
-
-            <ul class="list-disc list-inside">
-
-                @foreach($errors->all() as $error)
-
-                <li>{{ $error }}</li>
-
-                @endforeach
-
-            </ul>
-
-        </div>
-
-        @endif
-
-        @yield('content')
-
-    </div>
 
     <!-- Footer -->
 
-    <footer class="bg-white border-t mt-10">
+    <footer class="bg-white border-t">
 
         <div class="max-w-7xl mx-auto py-5 text-center text-gray-500">
 
