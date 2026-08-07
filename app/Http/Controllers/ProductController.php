@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Rap2hpoutre\FastExcel\FastExcel;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use App\Models\FileHistory;
 
 class ProductController extends Controller
 {
@@ -181,17 +182,44 @@ class ProductController extends Controller
 
         $products = $query->get();
 
+
+        FileHistory::create([
+
+            'file_name' => 'products_' . now()->format('Y-m-d_H-i-s') . '.xlsx',
+
+            'type' => 'export',
+
+            'total_rows' => $products->count(),
+
+            'success_rows' => $products->count(),
+
+            'failed_rows' => 0,
+
+            'errors' => null
+
+        ]);
+
+
         return (new FastExcel($products))->download(
             'products_' . now()->format('Y-m-d_H-i-s') . '.xlsx',
             function ($product) {
+
                 return [
+
                     'ID' => $product->id,
+
                     'Name' => $product->name,
+
                     'Description' => $product->description,
+
                     'Category' => $product->category,
+
                     'Price' => $product->price,
+
                     'Stock' => $product->stock,
+
                     'Created At' => $product->created_at->format('Y-m-d H:i:s'),
+
                 ];
             }
         );
@@ -235,8 +263,24 @@ class ProductController extends Controller
             'stock'
         )->get();
 
-        return (new FastExcel($products))
-            ->download('simple_products.xlsx');
+        FileHistory::create([
+
+            'file_name' => 'simple_products.xlsx',
+
+            'type' => 'export',
+
+            'total_rows' => $products->count(),
+
+            'success_rows' => $products->count(),
+
+            'failed_rows' => 0,
+
+            'errors' => null
+
+        ]);
+
+
+        return (new FastExcel($products))->download('simple_products.xlsx');
     }
 
     /**
@@ -252,59 +296,199 @@ class ProductController extends Controller
      */
     public function import(Request $request)
     {
-        $request->validate([
-            'file' => 'required|mimes:xlsx,xls,csv|max:2048'
-        ]);
+        /*
+    |--------------------------------------------------------------------------
+    | Confirm Import From Preview
+    |--------------------------------------------------------------------------
+    */
+
+        if ($request->has('confirm')) {
+
+            $previewData = session('import_preview');
+
+            if (!$previewData) {
+
+                return redirect()
+                    ->route('products.import.form')
+                    ->with(
+                        'error',
+                        'Import session expired. Please upload the file again.'
+                    );
+            }
+
+            $collection = collect($previewData);
+
+            $fileName = session('import_file_name', 'preview_import.xlsx');
+        } else {
+
+            /*
+        |--------------------------------------------------------------------------
+        | Normal Direct Import
+        |--------------------------------------------------------------------------
+        */
+
+            $request->validate([
+                'file' => 'required|mimes:xlsx,xls,csv|max:2048'
+            ]);
+
+            $file = $request->file('file');
+
+            $fileName = $file->getClientOriginalName();
+
+            try {
+
+                $collection = collect(
+                    (new FastExcel)
+                        ->import($file->path())
+                );
+            } catch (\Exception $e) {
+
+                return redirect()
+                    ->back()
+                    ->with(
+                        'error',
+                        'Error importing file: ' . $e->getMessage()
+                    );
+            }
+        }
+
+
+        /*
+    |--------------------------------------------------------------------------
+    | Import Processing
+    |--------------------------------------------------------------------------
+    */
 
         try {
-            $collection = (new FastExcel)->import($request->file('file')->path());
 
             $imported = 0;
+
             $failed = 0;
+
             $errors = [];
 
-            foreach ($collection as $row) {
-                // Validate row data
+
+            foreach ($collection as $index => $row) {
+
                 $validator = Validator::make($row, [
+
                     'Name' => 'required|string|max:255',
+
                     'Price' => 'required|numeric|min:0',
+
                     'Stock' => 'required|integer|min:0',
+
                     'Category' => 'required|string|max:100',
+
                     'Description' => 'nullable|string'
+
                 ]);
 
+
                 if ($validator->fails()) {
+
                     $failed++;
-                    $errors[] = "Row with Name '{$row['Name']}' failed: " . implode(', ', $validator->errors()->all());
+
+                    $errors[] = [
+
+                        'row' => $index + 1,
+
+                        'message' => $validator->errors()->all()
+
+                    ];
+
                     continue;
                 }
 
-                // Create product
+
                 Product::create([
+
                     'name' => $row['Name'],
+
                     'description' => $row['Description'] ?? '',
+
                     'price' => $row['Price'],
+
                     'stock' => $row['Stock'],
+
                     'category' => $row['Category']
+
                 ]);
+
 
                 $imported++;
             }
 
+
+            /*
+        |--------------------------------------------------------------------------
+        | Store File History
+        |--------------------------------------------------------------------------
+        */
+
+            FileHistory::create([
+
+                'file_name' => $fileName,
+
+                'type' => 'import',
+
+                'total_rows' => $imported + $failed,
+
+                'success_rows' => $imported,
+
+                'failed_rows' => $failed,
+
+                'errors' => $errors
+
+            ]);
+
+
+            /*
+        |--------------------------------------------------------------------------
+        | Clear Preview Session
+        |--------------------------------------------------------------------------
+        */
+
+            session()->forget([
+                'import_preview',
+                'import_file_name'
+            ]);
+
+
+            /*
+        |--------------------------------------------------------------------------
+        | Success Message
+        |--------------------------------------------------------------------------
+        */
+
             $message = "Successfully imported {$imported} products.";
+
             if ($failed > 0) {
+
                 $message .= " Failed: {$failed} products.";
             }
 
-            return redirect()->route('products.index')
-                ->with('success', $message)
-                ->with('errors', $errors);
+
+            return redirect()
+
+                ->route('products.index')
+
+                ->with('success', $message);
         } catch (\Exception $e) {
-            return redirect()->back()
-                ->with('error', 'Error importing file: ' . $e->getMessage());
+
+            return redirect()
+
+                ->back()
+
+                ->with(
+
+                    'error',
+
+                    'Error importing file: ' . $e->getMessage()
+
+                );
         }
     }
-
     /**
      * Export as CSV
      */
@@ -338,6 +522,24 @@ class ProductController extends Controller
         }
 
         $products = $query->get();
+
+
+        FileHistory::create([
+
+            'file_name' => 'products.csv',
+
+            'type' => 'export',
+
+            'total_rows' => $products->count(),
+
+            'success_rows' => $products->count(),
+
+            'failed_rows' => 0,
+
+            'errors' => null
+
+        ]);
+
 
         return (new FastExcel($products))->download(
             'products.csv',
@@ -374,5 +576,47 @@ class ProductController extends Controller
         ];
 
         return (new FastExcel(collect([$headers])))->download('import_template.xlsx');
+    }
+
+    public function previewImport(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|mimes:xlsx,csv,xls|max:2048'
+        ]);
+
+        try {
+
+            $data = collect(
+                (new FastExcel)
+                    ->import($request->file('file')->path())
+            );
+
+            if ($data->isEmpty()) {
+                return redirect()
+                    ->back()
+                    ->with('error', 'The uploaded file is empty.');
+            }
+
+            // Store complete imported data and filename in session
+            session([
+                'import_preview' => $data->toArray(),
+                'import_file_name' => $request->file('file')->getClientOriginalName()
+            ]);
+
+            return view(
+                'products.import-preview',
+                [
+                    'products' => $data->take(10)
+                ]
+            );
+        } catch (\Exception $e) {
+
+            return redirect()
+                ->back()
+                ->with(
+                    'error',
+                    'Error reading file: ' . $e->getMessage()
+                );
+        }
     }
 }
