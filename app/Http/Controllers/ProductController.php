@@ -6,47 +6,237 @@ use App\Models\Product;
 use Illuminate\Http\Request;
 use Rap2hpoutre\FastExcel\FastExcel;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 
 class ProductController extends Controller
 {
     /**
      * Display products with export/import buttons
      */
-    public function index()
+    public function index(Request $request)
     {
-        $products = Product::latest()->paginate(10);
-        return view('products.index', compact('products'));
+        $query = Product::query();
+
+        /*
+    |--------------------------------------------------------------------------
+    | Search
+    |--------------------------------------------------------------------------
+    */
+
+        if ($request->filled('search')) {
+
+            $search = $request->search;
+
+            $query->where(function ($q) use ($search) {
+
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('category', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+
+        /*
+    |--------------------------------------------------------------------------
+    | Category Filter
+    |--------------------------------------------------------------------------
+    */
+
+        if ($request->filled('category')) {
+
+            $query->where('category', $request->category);
+        }
+
+        /*
+    |--------------------------------------------------------------------------
+    | Minimum Price
+    |--------------------------------------------------------------------------
+    */
+
+        if ($request->filled('min_price')) {
+
+            $query->where('price', '>=', $request->min_price);
+        }
+
+        /*
+    |--------------------------------------------------------------------------
+    | Maximum Price
+    |--------------------------------------------------------------------------
+    */
+
+        if ($request->filled('max_price')) {
+
+            $query->where('price', '<=', $request->max_price);
+        }
+
+        /*
+    |--------------------------------------------------------------------------
+    | Products
+    |--------------------------------------------------------------------------
+    */
+
+        $products = $query
+            ->latest()
+            ->paginate(10)
+            ->withQueryString();
+
+        /*
+    |--------------------------------------------------------------------------
+    | Analytics
+    |--------------------------------------------------------------------------
+    */
+
+        $totalProducts = Product::count();
+
+        $totalCategories = Product::distinct('category')->count('category');
+
+        $totalStock = Product::sum('stock');
+
+        $totalInventoryValue = Product::sum(
+            DB::raw('price * stock')
+        );
+
+        /*
+    |--------------------------------------------------------------------------
+    | Statistics
+    |--------------------------------------------------------------------------
+    */
+
+        $highestPrice = Product::orderByDesc('price')->first();
+
+        $lowestPrice = Product::orderBy('price')->first();
+
+        $averagePrice = Product::avg('price');
+
+        $outOfStock = Product::where('stock', 0)->count();
+
+        /*
+    |--------------------------------------------------------------------------
+    | Categories
+    |--------------------------------------------------------------------------
+    */
+
+        $categories = Product::select('category')
+            ->distinct()
+            ->orderBy('category')
+            ->pluck('category');
+
+        return view('products.index', compact(
+
+            'products',
+
+            'categories',
+
+            'totalProducts',
+
+            'totalCategories',
+
+            'totalStock',
+
+            'totalInventoryValue',
+
+            'highestPrice',
+
+            'lowestPrice',
+
+            'averagePrice',
+
+            'outOfStock'
+        ));
     }
 
     /**
      * Export all products to Excel
      */
-    public function export()
+    public function export(Request $request)
     {
-        $products = Product::all();
-        
-        return (new FastExcel($products))->download('products_' . date('Y-m-d') . '.xlsx', function ($product) {
-            return [
-                'ID' => $product->id,
-                'Name' => $product->name,
-                'Description' => $product->description,
-                'Price' => $product->price,
-                'Stock' => $product->stock,
-                'Category' => $product->category,
-                'Created At' => $product->created_at->format('Y-m-d H:i:s'),
-                'Updated At' => $product->updated_at->format('Y-m-d H:i:s'),
-            ];
-        });
+        $query = Product::query();
+
+        // Search
+        if ($request->filled('search')) {
+
+            $search = $request->search;
+
+            $query->where(function ($q) use ($search) {
+
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('category', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+
+        // Category Filter
+        if ($request->filled('category')) {
+            $query->where('category', $request->category);
+        }
+
+        // Min Price
+        if ($request->filled('min_price')) {
+            $query->where('price', '>=', $request->min_price);
+        }
+
+        // Max Price
+        if ($request->filled('max_price')) {
+            $query->where('price', '<=', $request->max_price);
+        }
+
+        $products = $query->get();
+
+        return (new FastExcel($products))->download(
+            'products_' . now()->format('Y-m-d_H-i-s') . '.xlsx',
+            function ($product) {
+                return [
+                    'ID' => $product->id,
+                    'Name' => $product->name,
+                    'Description' => $product->description,
+                    'Category' => $product->category,
+                    'Price' => $product->price,
+                    'Stock' => $product->stock,
+                    'Created At' => $product->created_at->format('Y-m-d H:i:s'),
+                ];
+            }
+        );
     }
 
     /**
      * Export selected columns only
      */
-    public function exportSimple()
+    public function exportSimple(Request $request)
     {
-        $products = Product::select('name', 'price', 'stock', 'category')->get();
-        
-        return (new FastExcel($products))->download('simple_products_' . date('Y-m-d') . '.xlsx');
+        $query = Product::query();
+
+        if ($request->filled('search')) {
+
+            $search = $request->search;
+
+            $query->where(function ($q) use ($search) {
+
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('category', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('category')) {
+            $query->where('category', $request->category);
+        }
+
+        if ($request->filled('min_price')) {
+            $query->where('price', '>=', $request->min_price);
+        }
+
+        if ($request->filled('max_price')) {
+            $query->where('price', '<=', $request->max_price);
+        }
+
+        $products = $query->select(
+            'name',
+            'category',
+            'price',
+            'stock'
+        )->get();
+
+        return (new FastExcel($products))
+            ->download('simple_products.xlsx');
     }
 
     /**
@@ -68,7 +258,7 @@ class ProductController extends Controller
 
         try {
             $collection = (new FastExcel)->import($request->file('file')->path());
-            
+
             $imported = 0;
             $failed = 0;
             $errors = [];
@@ -109,7 +299,6 @@ class ProductController extends Controller
             return redirect()->route('products.index')
                 ->with('success', $message)
                 ->with('errors', $errors);
-
         } catch (\Exception $e) {
             return redirect()->back()
                 ->with('error', 'Error importing file: ' . $e->getMessage());
@@ -119,18 +308,56 @@ class ProductController extends Controller
     /**
      * Export as CSV
      */
-    public function exportCsv()
+
+    public function exportCsv(Request $request)
     {
-        $products = Product::all();
-        
-        return (new FastExcel($products))->download('products_' . date('Y-m-d') . '.csv', function ($product) {
-            return [
-                'Name' => $product->name,
-                'Price' => $product->price,
-                'Stock' => $product->stock,
-                'Category' => $product->category
-            ];
-        });
+        $query = Product::query();
+
+        if ($request->filled('search')) {
+
+            $search = $request->search;
+
+            $query->where(function ($q) use ($search) {
+
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('category', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('category')) {
+            $query->where('category', $request->category);
+        }
+
+        if ($request->filled('min_price')) {
+            $query->where('price', '>=', $request->min_price);
+        }
+
+        if ($request->filled('max_price')) {
+            $query->where('price', '<=', $request->max_price);
+        }
+
+        $products = $query->get();
+
+        return (new FastExcel($products))->download(
+            'products.csv',
+            function ($product) {
+
+                return [
+
+                    'Name' => $product->name,
+
+                    'Category' => $product->category,
+
+                    'Price' => $product->price,
+
+                    'Stock' => $product->stock,
+
+                    'Description' => $product->description,
+
+                ];
+            }
+        );
     }
 
     /**
