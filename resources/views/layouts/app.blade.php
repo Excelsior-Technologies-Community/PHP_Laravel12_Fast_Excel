@@ -1,176 +1,113 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
     <meta charset="UTF-8">
-
-    <meta name="viewport"
-        content="width=device-width, initial-scale=1.0">
-
-    <title>Laravel FastExcel Dashboard</title>
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>{{ $title ?? 'FastExcel Pro — Enterprise Data Import & Export' }}</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        [x-cloak] { display: none !important; }
+    </style>
 </head>
+<body class="min-h-screen flex flex-col bg-slate-50 font-sans antialiased text-slate-800">
 
-<body class="min-h-screen flex flex-col bg-gray-50">
-
-    <!-- Navbar -->
-
-    <nav class="bg-indigo-700 shadow-lg">
-
-        <div class="max-w-7xl mx-auto px-6">
-
+    <!-- Top Navigation Bar -->
+    <nav class="bg-indigo-900 border-b border-indigo-800 shadow-md sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
-
-                <div>
-
-                    <a href="{{ route('products.index') }}"
-                        class="text-white text-2xl font-bold">
-
-                        Laravel FastExcel
-
+                <!-- Brand Mark -->
+                <div class="flex items-center space-x-3">
+                    <a href="{{ route('products.index') }}" class="flex items-center space-x-2 text-white font-black text-xl tracking-tight">
+                        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-indigo-500 flex items-center justify-center shadow-md">
+                            <i class="fa-solid fa-file-excel text-white text-lg"></i>
+                        </div>
+                        <span>FastExcel <span class="text-emerald-400 font-medium text-sm px-2 py-0.5 rounded-full bg-emerald-950/60 border border-emerald-500/30">Enterprise</span></span>
                     </a>
-
                 </div>
 
-                <div class="flex space-x-3">
-
+                <!-- Nav Links -->
+                <div class="flex items-center space-x-1 sm:space-x-3">
                     <a href="{{ route('products.index') }}"
-                        class="text-white hover:bg-indigo-600 px-4 py-2 rounded">
-
-                        Dashboard
-
+                        class="px-3 py-2 rounded-lg text-sm font-semibold transition {{ request()->routeIs('products.index') ? 'bg-indigo-800 text-white shadow-inner' : 'text-indigo-200 hover:bg-indigo-800/60 hover:text-white' }}">
+                        <i class="fa-solid fa-table-cells mr-1.5"></i> Dashboard
                     </a>
 
                     <a href="{{ route('products.import.form') }}"
-                        class="text-white hover:bg-indigo-600 px-4 py-2 rounded">
-
-                        Import
-
-                    </a>
-
-                    <a href="{{ route('products.export') }}"
-                        class="text-white hover:bg-indigo-600 px-4 py-2 rounded">
-
-                        Export
-
+                        class="px-3 py-2 rounded-lg text-sm font-semibold transition {{ request()->routeIs('products.import*') ? 'bg-indigo-800 text-white shadow-inner' : 'text-indigo-200 hover:bg-indigo-800/60 hover:text-white' }}">
+                        <i class="fa-solid fa-cloud-arrow-up mr-1.5"></i> Smart Import
                     </a>
 
                     <a href="{{ route('files.history') }}"
-                        class="text-white hover:bg-indigo-600 px-4 py-2 rounded">
-
-                        File History
-
+                        class="px-3 py-2 rounded-lg text-sm font-semibold transition {{ request()->routeIs('files.history*') ? 'bg-indigo-800 text-white shadow-inner' : 'text-indigo-200 hover:bg-indigo-800/60 hover:text-white' }}">
+                        <i class="fa-solid fa-clock-rotate-left mr-1.5"></i> History &amp; Rollback
                     </a>
 
+                    <a href="{{ route('products.template') }}"
+                        class="hidden md:inline-flex items-center px-3 py-2 rounded-lg text-sm font-semibold text-emerald-300 hover:bg-indigo-800/60 hover:text-emerald-200 transition">
+                        <i class="fa-solid fa-download mr-1.5"></i> Template
+                    </a>
                 </div>
-
             </div>
-
         </div>
-
     </nav>
 
-
     <!-- Main Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <!-- Flash Alerts -->
+        @if(session('success'))
+            <div class="mb-6 flex items-start p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 shadow-sm transition">
+                <i class="fa-solid fa-circle-check text-emerald-500 mt-0.5 text-lg mr-3 flex-shrink-0"></i>
+                <div class="flex-1 text-sm font-medium">{{ session('success') }}</div>
+                <button type="button" onclick="this.parentElement.remove()" class="text-emerald-500 hover:text-emerald-700 ml-3">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+        @endif
 
-    <main class="flex-1">
+        @if(session('error'))
+            <div class="mb-6 flex items-start p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 shadow-sm transition">
+                <i class="fa-solid fa-circle-exclamation text-rose-500 mt-0.5 text-lg mr-3 flex-shrink-0"></i>
+                <div class="flex-1 text-sm font-medium">{{ session('error') }}</div>
+                <button type="button" onclick="this.parentElement.remove()" class="text-rose-500 hover:text-rose-700 ml-3">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+        @endif
 
-        <div class="max-w-7xl mx-auto py-8 px-4">
-
-            <!-- Success Message -->
-
-            @if(session('success'))
-
-                <div class="bg-green-100 border border-green-400 text-green-700 px-5 py-3 rounded-lg mb-5">
-
-                    {{ session('success') }}
-
+        @if($errors->any())
+            <div class="mb-6 p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 shadow-sm">
+                <div class="flex items-center font-bold text-sm mb-1.5 text-rose-900">
+                    <i class="fa-solid fa-triangle-exclamation mr-2"></i> Please correct the following errors:
                 </div>
+                <ul class="list-disc list-inside text-sm space-y-0.5 text-rose-700">
+                    @foreach($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
 
-            @endif
-
-
-            <!-- Error Message -->
-
-            @if(session('error'))
-
-                <div class="bg-red-100 border border-red-400 text-red-700 px-5 py-3 rounded-lg mb-5">
-
-                    {{ session('error') }}
-
-                </div>
-
-            @endif
-
-
-            <!-- Import Errors -->
-
-            @if(session('errors'))
-
-                <div class="bg-yellow-100 border border-yellow-400 text-yellow-800 px-5 py-3 rounded-lg mb-5">
-
-                    <h3 class="font-bold mb-2">
-                        Import Errors
-                    </h3>
-
-                    <ul class="list-disc list-inside">
-
-                        @foreach(session('errors') as $error)
-
-                            <li>{{ $error }}</li>
-
-                        @endforeach
-
-                    </ul>
-
-                </div>
-
-            @endif
-
-
-            <!-- Validation Errors -->
-
-            @if($errors->any())
-
-                <div class="bg-red-100 border border-red-400 text-red-700 px-5 py-3 rounded-lg mb-5">
-
-                    <ul class="list-disc list-inside">
-
-                        @foreach($errors->all() as $error)
-
-                            <li>{{ $error }}</li>
-
-                        @endforeach
-
-                    </ul>
-
-                </div>
-
-            @endif
-
-
-            @yield('content')
-
-        </div>
-
+        @yield('content')
     </main>
 
-
     <!-- Footer -->
-
-    <footer class="bg-white border-t">
-
-        <div class="max-w-7xl mx-auto py-5 text-center text-gray-500">
-
-            Laravel 12 FastExcel Demo • Developed with ❤️ using FastExcel
-
+    <footer class="bg-white border-t border-slate-200 mt-auto">
+        <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center text-xs text-slate-500 gap-3">
+            <div class="flex items-center space-x-2">
+                <span class="font-semibold text-slate-700">Laravel 12 FastExcel Suite</span>
+                <span>•</span>
+                <span>High-Speed Queue Processing &amp; Smart Mapping</span>
+            </div>
+            <div>
+                Built for 100k+ Large Datasets &amp; Instant Rollback
+            </div>
         </div>
-
     </footer>
 
+    @stack('scripts')
 </body>
-
 </html>
